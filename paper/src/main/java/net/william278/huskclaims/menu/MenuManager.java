@@ -55,7 +55,7 @@ import java.util.function.Consumer;
 public class MenuManager implements Listener {
 
     public static final String NAME_KEY = "name";
-    public static final String OTHER_PERMISSION = "huskclaims.command.claimmenu.other";
+    public static final String OTHER_PERMISSION = "huskclaims.command.claims.other";
     private static final long PROMPT_TIMEOUT_MILLIS = 60_000;
     private static final int MAX_NAME_LENGTH = 32;
 

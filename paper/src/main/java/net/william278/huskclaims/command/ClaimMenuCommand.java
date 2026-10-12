@@ -37,14 +37,15 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Opens the claim menus: the claim you're standing in (if you can manage it), otherwise your claims list
+ * Opens the claim menus: the claim you're standing in (if you can manage it), otherwise your claims list.
+ * Takes the {@code /claims} alias from {@code /claimslist}, which stays as the chat list
  */
 public class ClaimMenuCommand extends OnlineUserCommand implements UserListTabCompletable {
 
     private final PaperHuskClaims paper;
 
     public ClaimMenuCommand(@NotNull PaperHuskClaims plugin) {
-        super(List.of("claimmenu", "claimgui", "cmenu"), "[player]", plugin);
+        super(List.of("claims", "claimmenu", "claimgui", "cmenu"), "[player]", plugin);
         this.paper = plugin;
         addAdditionalPermissions(Map.of("other", true));
     }

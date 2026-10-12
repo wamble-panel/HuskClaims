@@ -247,8 +247,14 @@ public class BukkitHuskClaims extends JavaPlugin implements HuskClaims, BukkitTa
 
     @Override
     public void registerCommands(@NotNull List<Command> commands) {
+        // A command's own name takes priority over another command's alias
+        final Set<String> names = new HashSet<>();
+        commands.forEach(command -> names.add(command.getName()));
         commands.forEach(command -> {
-            new BukkitCommand(command, this).register();
+            final List<String> aliases = command.getAliases().stream()
+                    .filter(alias -> alias.equals(command.getName()) || !names.contains(alias))
+                    .toList();
+            new BukkitCommand(command, aliases, this).register();
             this.commands.add(command);
         });
     }

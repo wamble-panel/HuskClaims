@@ -37,7 +37,11 @@ public class BukkitCommand extends org.bukkit.command.Command {
     private final Command command;
 
     public BukkitCommand(@NotNull Command command, @NotNull BukkitHuskClaims plugin) {
-        super(command.getName(), command.getDescription(), command.getUsage(), command.getAliases());
+        this(command, command.getAliases(), plugin);
+    }
+
+    public BukkitCommand(@NotNull Command command, @NotNull List<String> aliases, @NotNull BukkitHuskClaims plugin) {
+        super(command.getName(), command.getDescription(), command.getUsage(), aliases);
         this.command = command;
         this.plugin = plugin;
     }

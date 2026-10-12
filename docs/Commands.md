@@ -80,18 +80,18 @@ This is a table of HuskClaims commands, how to use them, their required permissi
             <td><code>huskclaims.command.claimslist.other</code></td>
             <td align="center">❌</td>
         </tr>
-        <!-- /claimmenu command -->
+        <!-- /claims command -->
         <tr>
-            <td rowspan="2"><code>/claimmenu</code></td>
-            <td><code>/claimmenu</code></td>
-            <td>Open the claim menu: the claim you're standing in if you can manage it, otherwise your claims (Paper only)</td>
-            <td><code>huskclaims.command.claimmenu</code></td>
+            <td rowspan="2"><code>/claims</code></td>
+            <td><code>/claims</code></td>
+            <td>Open the claim menu: the claim you're standing in if you can manage it, otherwise your claims (Paper only; elsewhere an alias of /claimslist)</td>
+            <td><code>huskclaims.command.claims</code></td>
             <td align="center">✅</td>
         </tr>
         <tr>
-            <td><code>/claimmenu &lt;username&gt;</code></td>
+            <td><code>/claims &lt;username&gt;</code></td>
             <td>Open the claims menu of another player</td>
-            <td><code>huskclaims.command.claimmenu.other</code></td>
+            <td><code>huskclaims.command.claims.other</code></td>
             <td align="center">❌</td>
         </tr>
         <!-- /adminclaimslist command -->
@@ -517,7 +517,7 @@ The following commands have aliases that can also be used for convenience:
 
 | Command            | Aliases                                    |
 |--------------------|--------------------------------------------|
-| `/claimslist`      | `/claims`                                  |
+| `/claimslist`      | `/claims` (not on Paper, where it opens the claim menu) |
 | `/trustlist`       | `/claiminfo`                               |
 | `/adminclaimslist` | `/adminclaims`                             |
 | `/unclaim`         | `/abandonclaim`                            |

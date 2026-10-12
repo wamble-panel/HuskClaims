@@ -238,7 +238,7 @@ locales:
   transferpet_command_description: 'Transfer ownership of a tamed animal.'
   claimban_command_description: 'Ban a player from a claim.'
   trapped_command_description: 'Teleport out of a claim you''re trapped in.'
-  claimmenu_command_description: 'Open the claim menu.'
+  claims_command_description: 'Open the claim menu.'
   gui_claims_title: '[Claims of %1%](#00fb9a bold) [(%2%/%3%)](gray)'
   gui_claim_title: '[Claim](#00fb9a bold) [| %1%](gray)'
   gui_flags_title: '[Claim Flags](#00fb9a bold) [| %1%](gray)'
