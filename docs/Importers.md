@@ -13,6 +13,7 @@ HuskClaims supports importing Claims, Trust and User data from [GriefPrevention]
     * If GriefPrevention used a database, run `/huskclaims import griefprevention set uri:(URI) username:(USERNAME) password:(PASSWORD)`, entering in your GriefPrevention database credentials.
       * If you are using a MySQL database, the URI should be in the format `jdbc:mysql://(HOST):(PORT)/(DATABASE)`.
       * If you are using a SQLite database, the URI should be in the format `jdbc:sqlite:(PATH_TO_DATABASE)`.
+    * If you used the [BanFromClaim](https://www.spigotmc.org/resources/banfromclaim.90127/) add-on, its bans in `plugins/BanFromClaim/data.dat` are imported too (as HuskClaims claim bans), so turn on `claims.bans` in your config. Use `set banfromclaim:(PATH)` if the file is elsewhere.
 3. Run `/huskclaims import griefprevention start` to begin the import process. This may take a while depending on the size of your data. Only run it once: running it again imports every claim a second time.
 4. Once the importer has finished, verify that the data has been imported correctly by typing `/adminclaimslist` and `/claimslist <player>`
 

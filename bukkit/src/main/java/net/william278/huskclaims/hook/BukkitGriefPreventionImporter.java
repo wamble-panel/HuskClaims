@@ -36,8 +36,10 @@ import net.william278.huskclaims.user.CommandUser;
 import net.william278.huskclaims.user.SavedUser;
 import net.william278.huskclaims.user.User;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;
@@ -67,6 +69,7 @@ public class BukkitGriefPreventionImporter extends Importer {
     private static final int CLAIMS_PER_PAGE = 500;
     private static final String GP_PUBLIC_STRING = "public";
     private static final String GP_DATA_FOLDER = "plugins/GriefPreventionData";
+    private static final String BFC_DATA_FILE = "plugins/BanFromClaim/data.dat";
 
     private HikariDataSource dataSource;
     // Set when importing from GriefPrevention's data files (its default storage) instead of a database
@@ -82,7 +85,8 @@ public class BukkitGriefPreventionImporter extends Importer {
                         "uri", false,
                         "username", false,
                         "password", false,
-                        "folder", false
+                        "folder", false,
+                        "banfromclaim", false
                 ),
                 Map.of(
                         "password", ""
@@ -250,6 +254,7 @@ public class BukkitGriefPreventionImporter extends Importer {
                 log(executor, Level.INFO, "Saved %s claims...".formatted(amount.get()));
             }
         });
+        importClaimBans(allClaims, executor);
 
         // Save claim worlds
         plugin.clearAllMapMarkers();
@@ -261,6 +266,79 @@ public class BukkitGriefPreventionImporter extends Importer {
         CompletableFuture.allOf(claimWorldFutures.toArray(CompletableFuture[]::new)).join();
         plugin.markAllClaims();
         return amount.get();
+    }
+
+    // Carries over bans from the BanFromClaim add-on for GriefPrevention, if its data file is present.
+    // Its file lists banned player UUIDs per GP claim ID, and claims that ban everyone (private claims).
+    private void importClaimBans(@NotNull Map<Claim, GriefPreventionClaim> allClaims, @NotNull CommandUser executor) {
+        final File file = Path.of(configParameters.getOrDefault("banfromclaim", BFC_DATA_FILE)).toFile();
+        if (!file.isFile()) {
+            return;
+        }
+        final Map<Integer, Claim> claimsById = Maps.newHashMap();
+        allClaims.forEach((hcc, gpc) -> claimsById.put(gpc.id(), hcc));
+        final YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+
+        int bans = 0;
+        final ConfigurationSection bannedPlayers = yaml.getConfigurationSection("bfc_claim_data");
+        if (bannedPlayers != null) {
+            for (final String id : bannedPlayers.getKeys(false)) {
+                final Claim claim = getClaimById(claimsById, id);
+                if (claim == null) {
+                    continue;
+                }
+                final Optional<ClaimWorld> claimWorld = plugin.getClaimWorld(allClaims.get(claim).lesserCorner.split(";")[0]);
+                for (final String entry : bannedPlayers.getStringList(id)) {
+                    final UUID banned;
+                    try {
+                        banned = UUID.fromString(entry.trim());
+                    } catch (IllegalArgumentException e) {
+                        continue;
+                    }
+                    if (claim.getOwner().map(banned::equals).orElse(false)) {
+                        continue;
+                    }
+
+                    // Banned players lose any trust they had, as when banning with /claimban
+                    claim.getTrustedUsers().remove(banned);
+                    claim.getBannedUsers().put(banned, claim.getOwner().orElse(ClaimWorld.ADMIN_CLAIM));
+                    claimWorld.ifPresent(world -> cacheBannedUser(world, banned));
+                    bans++;
+                }
+            }
+        }
+
+        int privateClaims = 0;
+        final ConfigurationSection banAll = yaml.getConfigurationSection("claims-ban-all");
+        if (banAll != null) {
+            for (final String id : banAll.getKeys(false)) {
+                final Claim claim = getClaimById(claimsById, id);
+                if (claim != null && !"false".equalsIgnoreCase(String.valueOf(banAll.get(id)))) {
+                    claim.setPrivateClaim(true);
+                    privateClaims++;
+                }
+            }
+        }
+        log(executor, Level.INFO, "Imported %s claim bans and %s private claims from BanFromClaim"
+                .formatted(bans, privateClaims));
+    }
+
+    @Nullable
+    private static Claim getClaimById(@NotNull Map<Integer, Claim> claimsById, @NotNull String id) {
+        try {
+            return claimsById.get(Integer.parseInt(id.trim()));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    // Banned players' names are needed to show them in /claimban list
+    private void cacheBannedUser(@NotNull ClaimWorld world, @NotNull UUID uuid) {
+        final Optional<User> user = users.stream().filter(gpu -> gpu.uuid.equals(uuid)).findFirst()
+                .map(GriefPreventionUser::toUser)
+                .or(() -> Optional.ofNullable(((BukkitHuskClaims) plugin).getServer().getOfflinePlayer(uuid).getName())
+                        .map(name -> User.of(uuid, name)));
+        user.ifPresent(world::cacheUser);
     }
 
     @NotNull
