@@ -1,0 +1,35 @@
+name: Build Jars
+
+on:
+  push:
+    branches-ignore: [ 'master' ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout 🛎️'
+        uses: actions/checkout@v5
+      - name: 'Set up JDK 21 📦'
+        uses: actions/setup-java@v5
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: 'Set up Gradle 🐘'
+        uses: gradle/actions/setup-gradle@v4
+      - name: 'Build Paper & Spigot jars 🏗️'
+        run: ./gradlew :paper:shadowJar :bukkit:shadowJar --no-daemon
+      - name: 'Upload jars 📤'
+        uses: actions/upload-artifact@v4
+        with:
+          name: HuskClaims-jars
+          path: |
+            target/HuskClaims-Paper-*.jar
+            target/HuskClaims-Bukkit-*.jar
+            !target/*-sources.jar
+            !target/*-javadoc.jar
+          if-no-files-found: error
