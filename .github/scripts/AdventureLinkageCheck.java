@@ -26,7 +26,8 @@ import java.util.jar.JarFile;
  * <p>
  * Every field, method and class reference to {@code net.kyori.adventure} that the server jars
  * provide is resolved against them, as the JVM would at runtime, and every class extending or
- * implementing a sealed Adventure type is reported. Exits with status 1 if anything is broken.
+ * implementing a sealed Adventure type is reported. Adventure's own classes bundled in the jar
+ * are skipped: Paper loads its own copies instead. Exits with status 1 if anything is broken.
  */
 public class AdventureLinkageCheck {
 
@@ -53,6 +54,9 @@ public class AdventureLinkageCheck {
         final Set<String> problems = new TreeSet<>();
         int checked = 0;
         for (ClassRefs refs : plugin) {
+            if (refs.name.startsWith(PREFIX)) {
+                continue;
+            }
             for (String type : refs.supertypes) {
                 final Class<?> parent = load(server, type);
                 if (parent != null && parent.isSealed() && !permits(parent, refs.name)) {
@@ -61,7 +65,7 @@ public class AdventureLinkageCheck {
             }
             for (String type : refs.classes) {
                 if (type.startsWith(PREFIX + "adventure/") && !bundled.contains(type)
-                        && !exists(server, type) && !refs.name.startsWith(PREFIX)) {
+                        && !exists(server, type)) {
                     problems.add(refs.name + " uses missing class " + type);
                 }
             }

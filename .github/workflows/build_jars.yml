@@ -38,7 +38,8 @@ jobs:
         run: |
           mkdir -p adventure5
           for a in adventure-api adventure-key adventure-text-serializer-legacy adventure-text-serializer-plain \
-              adventure-text-serializer-gson adventure-text-serializer-json adventure-text-minimessage; do
+              adventure-text-serializer-gson adventure-text-serializer-json adventure-text-minimessage \
+              adventure-text-logger-slf4j; do
             curl -sSfL -o "adventure5/$a.jar" "https://repo1.maven.org/maven2/net/kyori/$a/5.2.0/$a-5.2.0.jar" \
               || { echo "Could not download $a"; rm -f "adventure5/$a.jar"; }
           done
