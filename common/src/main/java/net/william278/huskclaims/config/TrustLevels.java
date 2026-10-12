@@ -161,6 +161,16 @@ public class TrustLevels {
                             OperationType.ENDER_PEARL_TELEPORT,
                             OperationType.START_RAID
                     ))
+                    .build(),
+
+            // Entry trust (only lets users in while the claim's entry whitelist is on)
+            TrustLevel.builder()
+                    .id("entry")
+                    .weight(50)
+                    .color("#b0b0b0")
+                    .displayName("Entry")
+                    .description("Allows users to enter the claim while its entry whitelist is on.")
+                    .commandAliases(List.of("entrytrust"))
                     .build()
     );
 

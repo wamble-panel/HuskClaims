@@ -71,7 +71,7 @@ public class ClaimBanCommand extends InClaimCommand implements UserListTabComple
 
             // Teleport the user out of the claim
             plugin.getOnlineUsers().stream().filter(u -> u.equals(user))
-                    .filter(u -> plugin.getClaimAt(u.getPosition()).map(c -> c.equals(claim)).orElse(false))
+                    .filter(u -> plugin.getClaimAt(u.getPosition()).map(c -> isClaimOrSubdivision(c, claim)).orElse(false))
                     .filter(u -> world.isBannedFromClaim(u, claim, plugin)).findFirst()
                     .ifPresent(u -> plugin.teleportOutOfClaim(u, true));
         });
@@ -222,6 +222,11 @@ public class ClaimBanCommand extends InClaimCommand implements UserListTabComple
                     .toList();
         }
 
+    }
+
+    // Whether a claim is the given claim or one of its subdivisions
+    private static boolean isClaimOrSubdivision(@NotNull Claim claim, @NotNull Claim parent) {
+        return claim.equals(parent) || claim.getParent().map(parent::equals).orElse(false);
     }
 
 }

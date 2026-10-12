@@ -66,14 +66,19 @@ public class ClaimPrivateCommand extends InClaimCommand implements ToggleTabComp
                     .ifPresent(user::sendMessage);
 
             // teleport all untrusted players outside the claim
-            plugin.getOnlineUsers().stream()
-                    .filter(u -> plugin.getClaimAt(u.getPosition()).map(c -> c.equals(claim)).orElse(false))
-                    .filter(u -> world.cannotNavigatePrivateClaim(u, claim, plugin))
-                    .forEach(u -> plugin.teleportOutOfClaim(u, true));
+            plugin.getOnlineUsers().forEach(u -> plugin.getClaimAt(u.getPosition())
+                    .filter(c -> isClaimOrSubdivision(c, claim))
+                    .filter(c -> world.cannotNavigatePrivateClaim(u, c, plugin))
+                    .ifPresent(c -> plugin.teleportOutOfClaim(u, true)));
             return;
         }
         plugin.getLocales().getLocale("claim_private_disabled")
                 .ifPresent(user::sendMessage);
+    }
+
+    // Whether a claim is the given claim or one of its subdivisions
+    private static boolean isClaimOrSubdivision(@NotNull Claim claim, @NotNull Claim parent) {
+        return claim.equals(parent) || claim.getParent().map(parent::equals).orElse(false);
     }
 
 }

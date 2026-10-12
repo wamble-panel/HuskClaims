@@ -29,6 +29,7 @@ import net.william278.huskclaims.user.OnlineUser;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Unmodifiable;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -37,39 +38,38 @@ import java.util.logging.Level;
 public interface SafeTeleportProvider {
 
     default void teleportOutOfClaim(@NotNull OnlineUser user, boolean instant) {
-        final Optional<Region> region = getPlugin().getClaimAt(user.getPosition()).map(Claim::getRegion);
+        // Leave the whole claim, not just the subdivision the user is standing in
+        final Optional<Region> region = getPlugin().getClaimAt(user.getPosition())
+                .map(claim -> claim.getParent().orElse(claim))
+                .map(Claim::getRegion);
         if (region.isEmpty()) {
             return;
         }
         final List<Position> positions = this.getPotentialPositions(user.getPosition(), region.get());
-        this.teleportOutOfClaim(user, positions, positions.size(), instant);
+        this.teleportOutOfClaim(user, positions, 0, instant);
     }
 
+    // Try each position in turn until a safe one is found
     private void teleportOutOfClaim(@NotNull OnlineUser user, @NotNull List<Position> positions,
-                                    int tries, boolean instant) {
-        final Position position = this.getPerimeterPosition(positions, tries);
-        if (tries <= 0) {
+                                    int index, boolean instant) {
+        if (index >= positions.size()) {
             getPlugin().log(Level.WARNING, "Failed to safely teleport %s after %s attempts"
                     .formatted(user.getName(), positions.size()));
             return;
         }
-        findSafePosition(position).thenAccept(found -> found.ifPresentOrElse(
-                (safe) -> getPlugin().runSync(() -> user.teleport(safe,  instant)),
-                () -> teleportOutOfClaim(user, positions, tries - 1, instant)
+        findSafePosition(positions.get(index)).thenAccept(found -> found.ifPresentOrElse(
+                (safe) -> getPlugin().runSync(() -> user.teleport(safe, instant)),
+                () -> teleportOutOfClaim(user, positions, index + 1, instant)
         ));
     }
 
-    @NotNull
-    private Position getPerimeterPosition(@NotNull List<Position> positions, int tries) {
-        return positions.get((tries - 1) % positions.size());
-    }
-
+    // Spots just outside each edge of the claim, unclaimed ones first, then nearest to the user first
     @NotNull
     @Unmodifiable
     private List<Position> getPotentialPositions(@NotNull Position position, @NotNull Region region) {
         final World world = position.getWorld();
         final List<Position> positions = Lists.newArrayList();
-        for (int i = 1; i < 4; i++) {
+        for (int i : new int[]{1, 2, 3, 8, 16}) {
             positions.addAll(List.of(
                     Position.at(region.getNearCorner().getBlockX() - i, 64, position.getBlockZ(), world),
                     Position.at(region.getFarCorner().getBlockX() + i, 64, position.getBlockZ(), world),
@@ -77,8 +77,9 @@ public interface SafeTeleportProvider {
                     Position.at(position.getBlockX(), 64, region.getFarCorner().getBlockZ() + i, world)
             ));
         }
-        positions.sort((p1, p2) -> Math.toIntExact(p1.distanceFrom(p2)));
-        return positions;
+        positions.sort(Comparator.comparing((Position p) -> getPlugin().getClaimAt(p).isPresent())
+                .thenComparingLong(p -> p.distanceFrom(position)));
+        return List.copyOf(positions);
     }
 
     @NotNull

@@ -40,6 +40,7 @@ import java.util.Map;
 public class TrustLevelMenu extends Menu {
 
     private static final Map<String, String> ICONS = Map.of(
+            "entry", "oak_fence_gate",
             "access", "oak_door",
             "container", "chest",
             "build", "bricks",

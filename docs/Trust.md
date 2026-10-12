@@ -142,6 +142,15 @@ Trust Levels are defined in the `trust_levels.yml` config file and the default s
                 (None)
             </td>
         </tr>
+        <tr>
+            <td>Entry</td>
+            <td><code>/entrytrust</code></td>
+            <td>Lets users into the claim while its entry whitelist (<code>/claimprivate</code>) is on, without granting anything else.</td>
+            <td>(None)</td>
+            <td style="text-align: center">
+                (None)
+            </td>
+        </tr>
     </tbody>
 </table>
 
@@ -271,6 +280,15 @@ trust_levels:
       - start_raid
     privileges: []
     weight: 100
+  - id: entry
+    display_name: Entry
+    description: Allows users to enter the claim while its entry whitelist is on.
+    color: '#b0b0b0'
+    command_aliases:
+      - entrytrust
+    flags: []
+    privileges: []
+    weight: 50
 # The operation types that the claim owner can perform in their own claim
 allowed_owner_operations:
   - start_raid

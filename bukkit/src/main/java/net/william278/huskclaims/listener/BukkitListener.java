@@ -24,6 +24,7 @@ import net.william278.cloplib.listener.BukkitOperationListener;
 import net.william278.cloplib.operation.OperationPosition;
 import net.william278.cloplib.operation.OperationUser;
 import net.william278.huskclaims.BukkitHuskClaims;
+import net.william278.huskclaims.claim.Claim;
 import net.william278.huskclaims.moderation.SignListener;
 import net.william278.huskclaims.position.World;
 import net.william278.huskclaims.user.User;
@@ -35,8 +36,11 @@ import org.bukkit.entity.Tameable;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
+import org.bukkit.event.block.BlockFertilizeEvent;
+import org.bukkit.event.block.SpongeAbsorbEvent;
 import org.bukkit.event.entity.EntityExplodeEvent;
 import org.bukkit.event.player.*;
+import org.bukkit.event.world.StructureGrowEvent;
 import org.bukkit.event.world.WorldLoadEvent;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
@@ -119,6 +123,36 @@ public class BukkitListener extends BukkitOperationListener implements BukkitPet
         ));
     }
         
+    // Stop bone meal (grass, flowers, moss) spreading into other players' claims
+    @EventHandler(ignoreCancelled = true)
+    public void onBlockFertilize(@NotNull BlockFertilizeEvent e) {
+        e.getBlocks().removeIf(state -> crossesIntoClaim(e.getBlock().getLocation(), state.getLocation()));
+    }
+
+    // Stop sponges soaking up water inside other players' claims
+    @EventHandler(ignoreCancelled = true)
+    public void onSpongeAbsorb(@NotNull SpongeAbsorbEvent e) {
+        e.getBlocks().removeIf(state -> crossesIntoClaim(e.getBlock().getLocation(), state.getLocation()));
+    }
+
+    // Stop trees and huge mushrooms growing into other players' claims
+    @EventHandler(ignoreCancelled = true)
+    public void onStructureGrow(@NotNull StructureGrowEvent e) {
+        e.getBlocks().removeIf(state -> crossesIntoClaim(e.getLocation(), state.getLocation()));
+    }
+
+    // Whether a change spreading from a block would reach into a claim that isn't the source's claim,
+    // or another claim of the same owner. Spreading into the wilderness is allowed
+    private boolean crossesIntoClaim(@NotNull Location source, @NotNull Location target) {
+        final Optional<Claim> targetClaim = plugin.getClaimAt(BukkitHuskClaims.Adapter.adapt(target));
+        if (targetClaim.isEmpty()) {
+            return false;
+        }
+        final Optional<Claim> sourceClaim = plugin.getClaimAt(BukkitHuskClaims.Adapter.adapt(source));
+        return sourceClaim.isEmpty() || !(sourceClaim.get().equals(targetClaim.get())
+                || sourceClaim.get().getOwner().equals(targetClaim.get().getOwner()));
+    }
+
     @EventHandler(ignoreCancelled = true)
     public void onWorldLoad(@NotNull WorldLoadEvent e) {
         plugin.runAsync(() -> {

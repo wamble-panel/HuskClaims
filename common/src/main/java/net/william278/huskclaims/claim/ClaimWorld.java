@@ -491,7 +491,8 @@ public class ClaimWorld {
             return false;
         }
 
-        if (claim.isUserBanned(user)) {
+        // A ban from a claim also covers its subdivisions
+        if (claim.isUserBanned(user) || claim.getParent().map(parent -> parent.isUserBanned(user)).orElse(false)) {
             plugin.getLocales().getLocale("user_banned_you", claim.getOwnerName(this, plugin))
                     .ifPresent(user::sendMessage);
             return true;
@@ -506,7 +507,10 @@ public class ClaimWorld {
         if (!plugin.getSettings().getClaims().getBans().isPrivateClaims()) {
             return false;
         }
-        if (!claim.isPrivateClaim()) {
+        // A private claim's subdivisions are private too
+        final Optional<Claim> parent = claim.getParent();
+        final boolean parentPrivate = parent.map(Claim::isPrivateClaim).orElse(false);
+        if (!claim.isPrivateClaim() && !parentPrivate) {
             return false;
         }
 
@@ -520,7 +524,12 @@ public class ClaimWorld {
             return false;
         }
 
-        if (claim.getTrustLevel(user, plugin).isEmpty()) {
+        // Let in users trusted here, or (for a private parent) trusted in the parent claim
+        final boolean trustedHere = claim.getTrustLevel(user, plugin).isPresent();
+        final boolean blockedHere = claim.isPrivateClaim() && claim.getEffectiveTrustLevel(user, plugin).isEmpty();
+        final boolean blockedByParent = parentPrivate && !trustedHere
+                && parent.flatMap(p -> p.getTrustLevel(user, plugin)).isEmpty();
+        if (blockedHere || blockedByParent) {
             plugin.getLocales().getLocale("claim_enter_is_private", claim.getOwnerName(this, plugin))
                     .ifPresent(user::sendMessage);
             return true;
