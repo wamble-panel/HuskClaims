@@ -97,6 +97,7 @@ allprojects {
     license {
         rule(rootProject.file('HEADER'))
         include('**/*.java')
+        exclude('de/themoep/**') // Vendored MineDown keeps its own MIT license header
     }
 
     test {

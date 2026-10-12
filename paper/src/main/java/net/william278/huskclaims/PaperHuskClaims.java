@@ -26,6 +26,7 @@ import net.william278.huskclaims.listener.ClaimsListener;
 import net.william278.huskclaims.listener.PaperListener;
 import net.william278.huskclaims.position.Position;
 import net.william278.huskclaims.user.BukkitUser;
+import net.william278.huskclaims.user.ConsoleUser;
 import net.william278.huskclaims.user.OnlineUser;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -47,6 +48,12 @@ public class PaperHuskClaims extends BukkitHuskClaims {
     public Audience getAudience(@NotNull UUID user) {
         final Player player = getServer().getPlayer(user);
         return player == null || !player.isOnline() ? Audience.empty() : player;
+    }
+
+    @Override
+    @NotNull
+    public ConsoleUser getConsole() {
+        return ConsoleUser.wrap(getServer().getConsoleSender());
     }
 
     @Override
