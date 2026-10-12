@@ -71,7 +71,30 @@ public abstract class InClaimCommand extends OnlineUserCommand {
             return;
         }
 
-        final Claim claim = optionalClaim.get();
+        this.executeIfPrivileged(user, world, optionalClaim.get(), args);
+    }
+
+    /**
+     * Run this command on a claim, as if the user were standing in it (e.g. from a menu)
+     *
+     * @param user  The user running the command
+     * @param world The world the claim is in
+     * @param claim The claim to run the command on
+     * @param args  The command arguments
+     * @since 1.5
+     */
+    public void executeOn(@NotNull OnlineUser user, @NotNull ClaimWorld world, @NotNull Claim claim,
+                          @NotNull String[] args) {
+        if (!hasPermission(user)) {
+            plugin.getLocales().getLocale("error_no_permission")
+                    .ifPresent(user::sendMessage);
+            return;
+        }
+        this.executeIfPrivileged(user, world, claim, args);
+    }
+
+    private void executeIfPrivileged(@NotNull OnlineUser user, @NotNull ClaimWorld world, @NotNull Claim claim,
+                                     @NotNull String[] args) {
         if (privilege != null && !claim.isPrivilegeAllowed(privilege, user, plugin)
                 && !hasPermission(user, "other")) {
             plugin.getLocales().getLocale("no_claim_privilege")
@@ -80,6 +103,19 @@ public abstract class InClaimCommand extends OnlineUserCommand {
         }
 
         this.execute(user, world, claim, args);
+    }
+
+    /**
+     * Returns if a user may run this command on a claim
+     *
+     * @param user  The user
+     * @param claim The claim
+     * @return if the user has the command permission and the claim privilege it needs
+     * @since 1.5
+     */
+    public boolean canUseOn(@NotNull OnlineUser user, @NotNull Claim claim) {
+        return hasPermission(user) && (privilege == null || claim.isPrivilegeAllowed(privilege, user, plugin)
+                || hasPermission(user, "other"));
     }
 
     /**

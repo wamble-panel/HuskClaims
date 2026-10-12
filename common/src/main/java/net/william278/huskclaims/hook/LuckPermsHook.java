@@ -69,6 +69,9 @@ public class LuckPermsHook extends Hook {
                 final GroupTrustTag tag = new GroupTrustTag(group, luckPerms.getUserManager(), plugin);
                 groupTags.add(tag.getName());
                 plugin.registerTrustTag(tag);
+            } catch (IllegalArgumentException e) {
+                plugin.log(Level.WARNING, "Skipped LuckPerms trust tag for group " + group.getName()
+                        + ": " + e.getMessage());
             } catch (Throwable e) {
                 plugin.log(Level.WARNING, "Failed to create LuckPerms trust tag for " + group.getName(), e);
             }

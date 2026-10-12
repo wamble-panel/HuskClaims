@@ -102,4 +102,9 @@ public class TrustCommand extends InClaimCommand implements TrustableTabCompleta
         return level.getDescription();
     }
 
+    @NotNull
+    public TrustLevel getLevel() {
+        return level;
+    }
+
 }

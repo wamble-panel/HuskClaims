@@ -93,6 +93,66 @@ public class ClaimFlagsCommand extends OnlineUserCommand implements TabCompletab
         }
     }
 
+    /**
+     * Get the flags a user may set, in the order {@code /claimflags list} shows them
+     *
+     * @param user The user
+     * @return the flags the user has permission to set
+     * @since 1.5
+     */
+    @NotNull
+    public List<OperationType> getManageableFlags(@NotNull CommandUser user) {
+        return plugin.getOperationListener().getRegisteredOperationTypes().stream()
+                .filter(op -> canManageFlag(user, op)).toList();
+    }
+
+    /**
+     * Returns if a user may change the flags of a claim
+     *
+     * @param user  The user
+     * @param claim The claim
+     * @return if the user has the command permission and may manage the claim's flags
+     * @since 1.5
+     */
+    public boolean canManageFlags(@NotNull OnlineUser user, @NotNull Claim claim) {
+        return hasPermission(user) && canManageFlagsIn(user, claim);
+    }
+
+    /**
+     * Set a flag on a claim (e.g. from a menu), with the same checks as {@code /claimflags set}
+     *
+     * @param user  The user setting the flag
+     * @param world The world the claim is in
+     * @param claim The claim
+     * @param type  The flag to set
+     * @param value Whether everyone may perform the operation in the claim
+     * @since 1.5
+     */
+    public void setClaimFlag(@NotNull OnlineUser user, @NotNull ClaimWorld world, @NotNull Claim claim,
+                             @NotNull OperationType type, boolean value) {
+        if (!hasPermission(user)) {
+            plugin.getLocales().getLocale("error_no_permission")
+                    .ifPresent(user::sendMessage);
+            return;
+        }
+        if (!canManageFlagsIn(user, claim)) {
+            plugin.getLocales().getLocale("no_claim_privilege")
+                    .ifPresent(user::sendMessage);
+            return;
+        }
+        if (!canManageFlag(user, type)) {
+            plugin.getLocales().getLocale("error_no_permission_flag", type.asMinimalString())
+                    .ifPresent(user::sendMessage);
+            return;
+        }
+        if (value) {
+            claim.getDefaultFlags().add(type);
+        } else {
+            claim.getDefaultFlags().remove(type);
+        }
+        plugin.getDatabase().updateClaimWorld(world);
+    }
+
     private void handleSetClaimFlag(@NotNull OnlineUser onlineUser, @Nullable Claim claim,
                                     @NotNull ClaimWorld world, @NotNull String[] args) {
         final Optional<OperationType> operationType = parseOperationTypeArg(args);

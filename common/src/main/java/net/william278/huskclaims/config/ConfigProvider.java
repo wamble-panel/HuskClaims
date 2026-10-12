@@ -108,7 +108,9 @@ public interface ConfigProvider {
         // Read existing locales if present
         final Path path = getConfigDirectory().resolve(String.format("messages-%s.yml", getSettings().getLanguage()));
         if (Files.exists(path)) {
-            setLocales(store.load(path));
+            final Locales locales = store.load(path);
+            addMissingLocales(store, locales);
+            setLocales(locales);
             return;
         }
 
@@ -119,6 +121,22 @@ public interface ConfigProvider {
             setLocales(locales);
         } catch (Throwable e) {
             getPlugin().log(Level.SEVERE, "An error occurred loading the locales (invalid lang code?)", e);
+        }
+    }
+
+    // Fill in messages missing from an older or custom messages file with the bundled ones
+    private void addMissingLocales(@NotNull YamlConfigurationStore<Locales> store, @NotNull Locales locales) {
+        InputStream input = getResource(String.format("locales/%s.yml", getSettings().getLanguage()));
+        if (input == null) {
+            input = getResource(String.format("locales/%s.yml", Locales.DEFAULT_LOCALE));
+        }
+        if (input == null) {
+            return;
+        }
+        try (InputStream defaults = input) {
+            store.read(defaults).locales.forEach(locales.locales::putIfAbsent);
+        } catch (Throwable e) {
+            getPlugin().log(Level.WARNING, "Failed to fill in missing messages from the default locales", e);
         }
     }
 
