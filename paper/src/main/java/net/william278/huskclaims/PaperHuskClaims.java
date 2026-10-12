@@ -19,23 +19,52 @@
 
 package net.william278.huskclaims;
 
+import com.google.common.collect.Lists;
 import lombok.NoArgsConstructor;
 import net.kyori.adventure.audience.Audience;
+import net.william278.huskclaims.command.ClaimMenuCommand;
+import net.william278.huskclaims.command.Command;
 import net.william278.huskclaims.highlighter.PaperBlockDisplayHighlighter;
 import net.william278.huskclaims.listener.ClaimsListener;
 import net.william278.huskclaims.listener.PaperListener;
+import net.william278.huskclaims.menu.MenuManager;
 import net.william278.huskclaims.position.Position;
 import net.william278.huskclaims.user.BukkitUser;
 import net.william278.huskclaims.user.ConsoleUser;
 import net.william278.huskclaims.user.OnlineUser;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 @NoArgsConstructor
 public class PaperHuskClaims extends BukkitHuskClaims {
+
+    @Nullable
+    private MenuManager menuManager;
+
+    @Override
+    public void onEnable() {
+        super.onEnable();
+        if (isEnabled()) {
+            this.menuManager = new MenuManager(this);
+        }
+    }
+
+    @Override
+    public void registerCommands(@NotNull List<Command> commands) {
+        final List<Command> withMenus = Lists.newArrayList(commands);
+        withMenus.add(new ClaimMenuCommand(this));
+        super.registerCommands(withMenus);
+    }
+
+    @Nullable
+    public MenuManager getMenuManager() {
+        return menuManager;
+    }
 
     @Override
     @SuppressWarnings("UnstableApiUsage")

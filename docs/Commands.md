@@ -80,6 +80,20 @@ This is a table of HuskClaims commands, how to use them, their required permissi
             <td><code>huskclaims.command.claimslist.other</code></td>
             <td align="center">❌</td>
         </tr>
+        <!-- /claimmenu command -->
+        <tr>
+            <td rowspan="2"><code>/claimmenu</code></td>
+            <td><code>/claimmenu</code></td>
+            <td>Open the claim menu: the claim you're standing in if you can manage it, otherwise your claims (Paper only)</td>
+            <td><code>huskclaims.command.claimmenu</code></td>
+            <td align="center">✅</td>
+        </tr>
+        <tr>
+            <td><code>/claimmenu &lt;username&gt;</code></td>
+            <td>Open the claims menu of another player</td>
+            <td><code>huskclaims.command.claimmenu.other</code></td>
+            <td align="center">❌</td>
+        </tr>
         <!-- /adminclaimslist command -->
         <tr>
             <td><code>/adminclaimslist</code></td>
