@@ -36,8 +36,13 @@ import net.william278.huskclaims.user.CommandUser;
 import net.william278.huskclaims.user.SavedUser;
 import net.william278.huskclaims.user.User;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -61,8 +66,11 @@ public class BukkitGriefPreventionImporter extends Importer {
     private static final int USERS_PER_PAGE = 500;
     private static final int CLAIMS_PER_PAGE = 500;
     private static final String GP_PUBLIC_STRING = "public";
+    private static final String GP_DATA_FOLDER = "plugins/GriefPreventionData";
 
     private HikariDataSource dataSource;
+    // Set when importing from GriefPrevention's data files (its default storage) instead of a database
+    private Path dataFolder;
     private ExecutorService pool;
     private List<GriefPreventionUser> users;
 
@@ -71,9 +79,10 @@ public class BukkitGriefPreventionImporter extends Importer {
                 List.of(ImportData.USERS, ImportData.CLAIMS),
                 plugin,
                 Map.of(
-                        "uri", true,
-                        "username", true,
-                        "password", false
+                        "uri", false,
+                        "username", false,
+                        "password", false,
+                        "folder", false
                 ),
                 Map.of(
                         "password", ""
@@ -86,7 +95,20 @@ public class BukkitGriefPreventionImporter extends Importer {
         final String uri = configParameters.get("uri");
         final String username = configParameters.get("username");
         final String password = configParameters.get("password");
-        if (uri == null || username == null) {
+        this.dataFolder = null;
+
+        // Without a database URI, read GriefPrevention's ClaimData & PlayerData files
+        if (uri == null) {
+            final Path folder = Path.of(configParameters.getOrDefault("folder", GP_DATA_FOLDER));
+            if (!Files.isDirectory(folder.resolve("ClaimData")) || !Files.isDirectory(folder.resolve("PlayerData"))) {
+                throw new IllegalArgumentException("Set a database uri, or a folder containing GriefPrevention's "
+                                                   + "ClaimData and PlayerData (looked in " + folder.toAbsolutePath() + ")");
+            }
+            this.dataFolder = folder;
+            this.pool = Executors.newFixedThreadPool(20);
+            return;
+        }
+        if (username == null) {
             throw new IllegalArgumentException("Missing required config parameters");
         }
 
@@ -113,6 +135,8 @@ public class BukkitGriefPreventionImporter extends Importer {
         if (pool != null) {
             pool.shutdown();
         }
+        this.dataSource = null;
+        this.dataFolder = null;
         this.configParameters = Maps.newHashMap(defaultParameters);
         this.users = Lists.newArrayList();
     }
@@ -126,6 +150,10 @@ public class BukkitGriefPreventionImporter extends Importer {
     }
 
     private int importUsers() {
+        if (dataFolder != null) {
+            users = readUserFiles();
+            return users.size();
+        }
         final int totalUsers = getTotalUsers();
         final int totalPages = (int) Math.ceil(totalUsers / (double) USERS_PER_PAGE);
         final List<CompletableFuture<List<GriefPreventionUser>>> userPages = IntStream.rangeClosed(1, totalPages)
@@ -140,17 +168,7 @@ public class BukkitGriefPreventionImporter extends Importer {
         if (users == null) {
             throw new IllegalStateException("Users must be imported before claims");
         }
-        final int totalClaims = getTotalClaims();
-        final int totalPages = (int) Math.ceil(totalClaims / (double) CLAIMS_PER_PAGE);
-
-        final List<CompletableFuture<List<GriefPreventionClaim>>> claimPages = IntStream.rangeClosed(1, totalPages)
-                .mapToObj(this::getClaimPage).toList();
-        CompletableFuture.allOf(claimPages.toArray(CompletableFuture[]::new)).join();
-        final List<GriefPreventionClaim> claims = claimPages.stream()
-                .map(CompletableFuture::join)
-                .toList().stream()
-                .flatMap(Collection::stream)
-                .toList();
+        final List<GriefPreventionClaim> claims = dataFolder != null ? readClaimFiles() : readClaimPages();
 
         log(executor, Level.INFO, "Adjusting claim block balances for %s users...".formatted(users.size()));
         final List<CompletableFuture<Void>> saveFutures = Lists.newArrayList();
@@ -243,6 +261,111 @@ public class BukkitGriefPreventionImporter extends Importer {
         CompletableFuture.allOf(claimWorldFutures.toArray(CompletableFuture[]::new)).join();
         plugin.markAllClaims();
         return amount.get();
+    }
+
+    @NotNull
+    private List<GriefPreventionClaim> readClaimPages() {
+        final int totalClaims = getTotalClaims();
+        final int totalPages = (int) Math.ceil(totalClaims / (double) CLAIMS_PER_PAGE);
+
+        final List<CompletableFuture<List<GriefPreventionClaim>>> claimPages = IntStream.rangeClosed(1, totalPages)
+                .mapToObj(this::getClaimPage).toList();
+        CompletableFuture.allOf(claimPages.toArray(CompletableFuture[]::new)).join();
+        return claimPages.stream()
+                .map(CompletableFuture::join)
+                .toList().stream()
+                .flatMap(Collection::stream)
+                .toList();
+    }
+
+    // Reads GriefPrevention's PlayerData/<uuid> files: an unused line, then accrued & bonus claim blocks
+    @NotNull
+    private List<GriefPreventionUser> readUserFiles() {
+        final List<GriefPreventionUser> users = Lists.newArrayList();
+        final File[] files = dataFolder.resolve("PlayerData").toFile().listFiles(File::isFile);
+        if (files == null) {
+            return users;
+        }
+        for (final File file : files) {
+            final UUID uuid;
+            try {
+                uuid = UUID.fromString(file.getName());
+            } catch (IllegalArgumentException e) {
+                continue;
+            }
+            if (!uuid.toString().equalsIgnoreCase(file.getName())) {
+                continue;
+            }
+            try {
+                final List<String> lines = Files.readAllLines(file.toPath(), StandardCharsets.UTF_8);
+                final int claimBlocks = parseLine(lines, 1) + parseLine(lines, 2);
+                final long lastPlayed = ((BukkitHuskClaims) plugin).getServer().getOfflinePlayer(uuid).getLastPlayed();
+                users.add(new GriefPreventionUser(
+                        uuid, new Timestamp(lastPlayed > 0 ? lastPlayed : file.lastModified()),
+                        claimBlocks, 0, (BukkitHuskClaims) plugin
+                ));
+            } catch (Throwable e) {
+                plugin.log(Level.WARNING, "Skipped unreadable GP player data file %s".formatted(file.getName()), e);
+            }
+        }
+        return users;
+    }
+
+    private static int parseLine(@NotNull List<String> lines, int index) {
+        return lines.size() > index && !lines.get(index).isBlank() ? Integer.parseInt(lines.get(index).trim()) : 0;
+    }
+
+    // Reads GriefPrevention's ClaimData/<id>.yml files
+    @NotNull
+    private List<GriefPreventionClaim> readClaimFiles() {
+        final List<GriefPreventionClaim> claims = Lists.newArrayList();
+        final File[] files = dataFolder.resolve("ClaimData").toFile()
+                .listFiles((dir, name) -> name.endsWith(".yml") && !name.startsWith("_"));
+        if (files == null) {
+            return claims;
+        }
+        for (final File file : files) {
+            try {
+                final int id = Integer.parseInt(file.getName().substring(0, file.getName().length() - ".yml".length()));
+                final YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+                final String lesserCorner = parseCorner(yaml.getString("Lesser Boundary Corner", ""));
+                final String greaterCorner = parseCorner(yaml.getString("Greater Boundary Corner", ""));
+
+                // GriefPrevention treats a claim without a valid owner UUID as an admin claim
+                String owner = yaml.getString("Owner", "");
+                try {
+                    owner = owner.isBlank() ? "" : UUID.fromString(owner.trim()).toString();
+                } catch (IllegalArgumentException e) {
+                    owner = "";
+                }
+                claims.add(new GriefPreventionClaim(
+                        id, owner, lesserCorner, greaterCorner,
+                        getTrusted(yaml, "Builders"), getTrusted(yaml, "Containers"),
+                        getTrusted(yaml, "Accessors"), getTrusted(yaml, "Managers"),
+                        yaml.getBoolean("inheritNothing"), (int) yaml.getLong("Parent Claim ID", -1L)
+                ));
+            } catch (Throwable e) {
+                plugin.log(Level.WARNING, "Skipped unreadable GP claim file %s".formatted(file.getName()), e);
+            }
+        }
+        return claims;
+    }
+
+    // Validates a "world;x;y;z" corner string
+    @NotNull
+    private static String parseCorner(@NotNull String corner) {
+        final String[] parts = corner.split(";");
+        if (parts.length < 4) {
+            throw new IllegalArgumentException("Invalid claim corner: " + corner);
+        }
+        Integer.parseInt(parts[1]);
+        Integer.parseInt(parts[3]);
+        return corner;
+    }
+
+    @NotNull
+    private static List<String> getTrusted(@NotNull YamlConfiguration yaml, @NotNull String key) {
+        return yaml.getStringList(key).stream().filter(s -> !s.isBlank()).toList();
     }
 
     private int getTotalUsers() {
