@@ -54,12 +54,16 @@ public interface BukkitBlockProvider extends BlockProvider {
     ) {
         final Map<BlockHighlighter.HighlightBlock, Highlightable.Type> blocks = Maps.newHashMap();
         final Location viewerLocation = Adapter.adapt(viewerPosition);
+        final int heightOffset = getPlugin().getSettings().getHighlighter().getHeightOffset();
         positions.forEach((position, highlightType) -> {
             final Location location = Adapter.adapt(Position.at(position, viewerPosition.getY(), surfaceWorld));
             final org.bukkit.World world = Objects.requireNonNull(location.getWorld(), "World is null");
             final boolean loaded = world.isChunkLoaded(location.getBlockX() >> 4, location.getBlockZ() >> 4);
             if (loaded && location.distance(viewerLocation) <= BlockHighlighter.VIEWING_RANGE) {
-                final Block block = getSurfaceBlockAt(location.getBlock(), world.getMinHeight(), world.getMaxHeight());
+                final Block surface = getSurfaceBlockAt(location.getBlock(), world.getMinHeight(), world.getMaxHeight());
+                final int y = Math.max(world.getMinHeight(),
+                        Math.min(world.getMaxHeight() - 1, surface.getY() + heightOffset));
+                final Block block = surface.getRelative(BlockFace.UP, y - surface.getY());
                 blocks.put(new BlockHighlighter.HighlightBlock(
                         Adapter.adapt(block.getLocation()),
                         new BlockDataBlock(block.getBlockData())

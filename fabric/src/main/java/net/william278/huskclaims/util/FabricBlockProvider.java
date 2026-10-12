@@ -65,16 +65,18 @@ public interface FabricBlockProvider extends BlockProvider {
         final Map<BlockHighlighter.HighlightBlock, Highlightable.Type> blocks = Maps.newHashMap();
         final BlockPos viewerBlock = new BlockPos(viewerPos.getBlockX(), (int) viewerPos.getY(), viewerPos.getBlockZ());
         final ServerWorld world = Adapter.adapt(surfaceWorld, getPlugin().getMinecraftServer());
+        final int heightOffset = getPlugin().getSettings().getHighlighter().getHeightOffset();
         positions.forEach((pos, highlightType) -> {
             final BlockPos.Mutable loc = new BlockPos.Mutable(pos.getBlockX() - 1, viewerBlock.getY(), pos.getBlockZ() - 1);
             final boolean loaded = world.isChunkLoaded(loc.getX() >> 4, loc.getZ() >> 4);
             if (loaded && loc.toCenterPos().distanceTo(viewerBlock.toCenterPos()) <= VIEWING_RANGE) {
-                final Pair<BlockPos, Block> block = getSurfaceBlockAt(
+                final Pair<BlockPos, Block> surface = getSurfaceBlockAt(
                         loc, world, world.getBottomY(), world.getHeight()
                 );
+                final BlockPos block = surface.getLeft().up(heightOffset);
                 blocks.put(new BlockHighlighter.HighlightBlock(
-                        Adapter.adapt(new Location(world, block.getLeft())),
-                        new BlockMaterialBlock(block.getRight())
+                        Adapter.adapt(new Location(world, block)),
+                        new BlockMaterialBlock(world.getBlockState(block).getBlock())
                 ), highlightType);
             }
         });

@@ -411,6 +411,9 @@ public final class Settings {
         @Comment("If using block displays, whether highlights should use a glow effect (requires Paper 1.19.4+)")
         private boolean glowEffect = true;
 
+        @Comment("How many blocks above the ground to show highlights (0 replaces the ground block itself)")
+        private int heightOffset = 0;
+
         @Comment("The blocks to use when highlighting claims")
         private Map<Highlightable.Type, String> blockTypes = new TreeMap<>(Map.of(
                 Highlightable.Type.EDGE, "minecraft:gold_block",

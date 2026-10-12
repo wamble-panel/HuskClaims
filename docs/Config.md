@@ -228,6 +228,8 @@ highlighter:
   block_displays: true
   # If using block displays, whether highlights should use a glow effect (requires Paper 1.19.4+)
   glow_effect: true
+  # How many blocks above the ground to show highlights (0 replaces the ground block itself)
+  height_offset: 0
   # The blocks to use when highlighting claims
   block_types:
     CORNER: minecraft:glowstone
